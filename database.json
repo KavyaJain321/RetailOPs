@@ -1,0 +1,165 @@
+{
+  "orders": [
+    {
+      "id": 1,
+      "retailerId": 1,
+      "retailerName": "as",
+      "date": "2025-07-21",
+      "items": [
+        {
+          "productId": 1,
+          "productName": "a1",
+          "quantity": 8,
+          "price": 1234
+        }
+      ],
+      "totalAmount": 9872,
+      "status": "completed",
+      "paymentTerms": 30
+    },
+    {
+      "id": 2,
+      "retailerId": 1,
+      "retailerName": "as",
+      "date": "2025-07-21",
+      "items": [
+        {
+          "productId": 2,
+          "productName": "a2",
+          "quantity": 8,
+          "price": 123
+        }
+      ],
+      "totalAmount": 984,
+      "status": "completed",
+      "paymentTerms": 30
+    },
+    {
+      "id": 3,
+      "retailerId": 2,
+      "retailerName": "Nitin provision",
+      "date": "2025-07-21",
+      "items": [
+        {
+          "productId": 3,
+          "productName": "chips",
+          "quantity": 20,
+          "price": 50
+        }
+      ],
+      "totalAmount": 1000,
+      "status": "completed",
+      "paymentTerms": 30
+    },
+    {
+      "id": 4,
+      "retailerId": 1,
+      "retailerName": "as",
+      "date": "2025-07-21",
+      "items": [
+        {
+          "productId": 3,
+          "productName": "chips",
+          "quantity": 20,
+          "price": 50
+        }
+      ],
+      "totalAmount": 1000,
+      "status": "pending",
+      "paymentTerms": 30
+    }
+  ],
+  "retailers": [
+    {
+      "shopName": "as",
+      "ownerName": "xyzz",
+      "phoneNumber": "916396840261",
+      "whatsappNumber": "916396840261",
+      "address": "",
+      "creditLimit": 20000,
+      "id": 1
+    },
+    {
+      "shopName": "Nitin provision",
+      "ownerName": "Nitin",
+      "phoneNumber": "9897085249",
+      "whatsappNumber": "919897085249",
+      "address": "197,bagh janki das",
+      "creditLimit": 100000,
+      "id": 2
+    }
+  ],
+  "products": [
+    {
+      "name": "a1",
+      "sku": "121",
+      "currentStock": 4,
+      "minStock": 2,
+      "unitPrice": 1234,
+      "category": "avc",
+      "id": 1
+    },
+    {
+      "name": "a2",
+      "sku": "1214",
+      "currentStock": 4,
+      "minStock": 2,
+      "unitPrice": 123,
+      "category": "avc",
+      "id": 2
+    },
+    {
+      "name": "chips",
+      "sku": "123",
+      "currentStock": 60,
+      "minStock": 10,
+      "unitPrice": 50,
+      "category": "snacks",
+      "id": 3
+    }
+  ],
+  "payments": [
+    {
+      "id": 1,
+      "orderId": 1,
+      "retailerId": 1,
+      "retailerName": "as",
+      "amount": 9872,
+      "dueDate": "2025-08-20",
+      "status": "completed"
+    },
+    {
+      "id": 2,
+      "orderId": 2,
+      "retailerId": 1,
+      "retailerName": "as",
+      "amount": 984,
+      "dueDate": "2025-08-20",
+      "status": "completed"
+    },
+    {
+      "id": 3,
+      "orderId": 3,
+      "retailerId": 2,
+      "retailerName": "Nitin provision",
+      "amount": 1000,
+      "dueDate": "2025-08-20",
+      "status": "completed"
+    },
+    {
+      "id": 4,
+      "orderId": 4,
+      "retailerId": 1,
+      "retailerName": "as",
+      "amount": 1000,
+      "dueDate": "2025-08-20",
+      "status": "pending"
+    }
+  ],
+  "notifications": [],
+  "templates": {
+    "payment_reminder": "Dear {{retailer_name}}, your payment of ₹{{amount}} for Order #{{order_id}} is due on {{due_date}}. Please make the payment at your earliest convenience. Thank you, Shubham Trading Co.",
+    "order_confirmation": "Hi {{retailer_name}}, your order #{{order_id}} for ₹{{amount}} has been confirmed. Expected delivery: {{delivery_date}}. Thank you for your business! - Shubham Trading Co.",
+    "stock_alert": "Stock Alert: {{product_name}} is running low. Current stock: {{current_stock}} units."
+  }
+}

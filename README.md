@@ -1,7 +1,7 @@
 # RetailOps: A Modern Management System for Distributors 🚀
 
-![RetailOps Dashboard Screenshot](<img width="1336" height="619" alt="image" src="https://github.com/user-attachments/assets/07ffa6ed-67f3-42bb-9348-08f78296a44e" />
-)
+[<img width="1336" height="619" alt="image" src="https://github.com/user-attachments/assets/07ffa6ed-67f3-42bb-9348-08f78296a44e" />](https://github.com/KavyaJain321/retailops/blob/main/WhatsApp%20Image%202025-07-21%20at%205.57.44%20PM.jpeg)
+
 <p align="center">A clean, at-a-glance dashboard to monitor key business metrics.</p>
 
 ---

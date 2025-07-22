@@ -1,3 +1,5 @@
+// server.js
+
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -61,7 +63,7 @@ app.get('/api/data', async (req, res) => {
         const data = await dataCollection.findOne({ _id: "main_data" });
         res.json(data);
     } catch (error) {
-        res.status(500).json({ message: "Failed to fetch data", error });
+        res.status(500).json({ message: "Failed to fetch data", error: error.message });
     }
 });
 
@@ -78,49 +80,38 @@ app.post('/api/data', async (req, res) => {
         );
         res.status(200).json({ message: 'Data saved successfully.' });
     } catch (error) {
-        res.status(500).json({ message: "Failed to save data", error });
+        res.status(500).json({ message: "Failed to save data", error: error.message });
     }
 });
 
-// POST endpoint for WhatsApp (no changes needed here)
-app.post('/api/whatsapp', (req, res) => {
+// POST endpoint for WhatsApp with improved error handling
+app.post('/api/whatsapp', async (req, res) => {
     const { number, message } = req.body;
-
-    if (!number || !message) {
-        return res.status(400).json({ message: 'Phone number and message are required.' });
-    }
-
-    // --- REAL-WORLD TWILIO INTEGRATION ---
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER;
 
-    // Check if Twilio credentials are configured in the .env file
-    if (!accountSid || !authToken || !fromNumber || accountSid === "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") {
-        const errorMessage = "Twilio credentials are not configured in the .env file. Falling back to simulation.";
-        console.error(errorMessage);
-        console.log('--- SIMULATING WHATSAPP ---');
-        console.log(`To: ${number}`);
-        console.log(`Message: ${message}`);
-        console.log('---------------------------');
-        // Still return a success to the frontend, but with a warning.
-        return res.status(200).json({ message: "Simulation successful. Server is not configured for live messages." });
+    if (!accountSid || !authToken || !fromNumber || !number || !message) {
+        return res.status(400).json({ message: 'Missing required information for sending message.' });
     }
 
-    const client = twilio(accountSid, authToken);
-
-    client.messages.create({
-        body: message,
-        from: fromNumber, // Your Twilio WhatsApp number from .env
-        to: `whatsapp:${number}` // The recipient's number from the frontend request
-    }).then(messageResponse => {
+    try {
+        const client = twilio(accountSid, authToken);
+        const messageResponse = await client.messages.create({
+            body: message,
+            from: fromNumber,
+            to: `whatsapp:${number}`
+        });
         console.log('Message sent successfully. SID:', messageResponse.sid);
         res.status(200).json({ message: `Message successfully sent to ${number}.` });
-    }).catch(err => {
-        console.error('Failed to send WhatsApp message via Twilio:', err);
-        // Provide a more detailed error message to the frontend if possible
-        res.status(500).json({ message: 'Failed to send WhatsApp message.', error: err.message });
-    });
+    } catch (error) {
+        // Log the specific error from Twilio and send it back to the frontend
+        console.error('Twilio API Error:', error.message);
+        res.status(500).json({ 
+            message: 'Failed to send WhatsApp message.', 
+            error: error.message // Send the specific error message
+        });
+    }
 });
 
 // --- Server Initialization ---

@@ -283,8 +283,22 @@
     <script>
         // --- FULL STACK IMPLEMENTATION (CLIENT-SIDE) ---
         
-        let appData = {};
-        const API_URL = ''; // Relative path works for localhost and deployed site
+        // FIX: Initialize appData with a default structure to prevent crashes if fetch fails
+        let appData = {
+            orders: [],
+            retailers: [],
+            products: [],
+            payments: [],
+            notifications: [],
+            templates: {
+                payment_reminder: "Dear {{retailer_name}}, your payment of ₹{{amount}} for Order #{{order_id}} is due on {{due_date}}. Please make the payment at your earliest convenience.",
+                order_confirmation: "Hi {{retailer_name}}, your order #{{order_id}} for ₹{{amount}} has been confirmed. Expected delivery: {{delivery_date}}.",
+                stock_alert: "Stock Alert: {{product_name}} is running low. Current stock: {{current_stock}} units."
+            }
+        };
+        
+        // FIX: Use the full URL of your deployed Render app.
+        const API_URL = 'https://retailops-iq67.onrender.com';
 
         // --- Core Data Functions ---
         const loadData = async () => {
@@ -484,10 +498,34 @@
             document.getElementById('orderTotal').value = total.toFixed(2);
         }
 
-        function loadReportStats() { /* ... */ }
-        function generateReport() { /* ... */ }
-        function loadNotificationTemplates() { /* ... */ }
-        function loadNotificationLog() { /* ... */ }
+        function loadReportStats() {
+            const container = document.getElementById('reportStats');
+            if (!container) return;
+            const thisMonth = new Date().getMonth();
+            const thisYear = new Date().getFullYear();
+            const monthlyOrders = appData.orders.filter(order => { const d = new Date(order.date); return d.getMonth() === thisMonth && d.getFullYear() === thisYear; });
+            const monthlyRevenue = monthlyOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+            const pendingPayments = appData.payments.filter(p => p.status === 'pending').length;
+            const overduePayments = appData.payments.filter(p => p.status === 'overdue').length;
+            container.innerHTML = `<div class="row"><div class="col-6 text-center border-end"><h4>${monthlyOrders.length}</h4><small>This Month Orders</small></div><div class="col-6 text-center"><h4>₹${monthlyRevenue.toLocaleString('en-IN')}</h4><small>This Month Revenue</small></div></div><hr><div class="row"><div class="col-6 text-center border-end"><h4 class="text-warning">${pendingPayments}</h4><small>Pending Payments</small></div><div class="col-6 text-center"><h4 class="text-danger">${overduePayments}</h4><small>Overdue Payments</small></div></div>`;
+        }
+
+        function generateReport() { showToast('Generating report...', 'info'); }
+        
+        function loadNotificationTemplates() {
+            const templateType = document.getElementById('templateType');
+            const messageTemplate = document.getElementById('messageTemplate');
+            if (templateType && messageTemplate) {
+                templateType.addEventListener('change', function() { messageTemplate.value = appData.templates[this.value] || ''; });
+                messageTemplate.value = appData.templates[templateType.value] || '';
+            }
+        }
+
+        function loadNotificationLog() {
+            const container = document.getElementById('notificationLog');
+            if (!container) return;
+            container.innerHTML = appData.notifications.map(notif => `<div class="border-bottom pb-2 mb-2"><div class="d-flex justify-content-between"><small class="fw-bold">${notif.type}</small><span class="badge bg-secondary">${notif.status}</span></div><div class="small">To: <strong>${notif.retailer}</strong></div><div class="small text-muted fst-italic">"${notif.message}"</div><div class="small text-muted text-end">${notif.timestamp}</div></div>`).join('') || '<p class="text-muted small text-center mt-3">No notifications yet</p>';
+        }
 
         // --- Data Manipulation Functions (CRUD) ---
 
@@ -553,15 +591,113 @@
             }
         }
         
-        async function saveRetailer() { /* ... */ }
-        async function saveProduct() { /* ... */ }
-        async function markOrderComplete(orderId) { /* ... */ }
-        async function markPaymentComplete(paymentId) { /* ... */ }
-        async function saveTemplate() { /* ... */ }
-        async function deleteRetailer(id) { /* ... */ }
-        async function editRetailer(id) { /* ... */ }
-        async function editProduct(id) { /* ... */ }
-        async function addStock(id) { /* ... */ }
+        async function saveRetailer() {
+            const retailerId = document.getElementById('retailerId').value;
+            const retailerData = {
+                shopName: document.getElementById('shopName').value.trim(),
+                ownerName: document.getElementById('ownerName').value.trim(),
+                phoneNumber: document.getElementById('phoneNumber').value.trim(),
+                whatsappNumber: document.getElementById('whatsappNumber').value.trim().replace(/\D/g,''),
+                address: document.getElementById('address').value.trim(),
+                creditLimit: parseFloat(document.getElementById('creditLimit').value) || 0
+            };
+            if (!retailerData.shopName || !retailerData.whatsappNumber) { showToast('Shop Name and WhatsApp Number are required.', 'danger'); return; }
+            if (retailerId) {
+                const index = appData.retailers.findIndex(r => r.id === parseInt(retailerId));
+                appData.retailers[index] = { ...appData.retailers[index], ...retailerData };
+            } else {
+                retailerData.id = (appData.retailers.length > 0 ? Math.max(...appData.retailers.map(r => r.id)) : 0) + 1;
+                appData.retailers.push(retailerData);
+            }
+            if (await saveData()) { bootstrap.Modal.getInstance(document.getElementById('retailerModal')).hide(); loadRetailersList(); showToast('Retailer saved successfully!', 'success'); }
+        }
+
+        async function saveProduct() {
+            const productId = document.getElementById('productId').value;
+            const productData = {
+                name: document.getElementById('productName').value, sku: document.getElementById('productSKU').value,
+                currentStock: parseInt(document.getElementById('currentStock').value), minStock: parseInt(document.getElementById('minStock').value),
+                unitPrice: parseFloat(document.getElementById('unitPrice').value), category: document.getElementById('productCategory').value
+            };
+            if (productId) {
+                const index = appData.products.findIndex(p => p.id === parseInt(productId));
+                appData.products[index] = { ...appData.products[index], ...productData };
+            } else {
+                productData.id = (appData.products.length > 0 ? Math.max(...appData.products.map(p => p.id)) : 0) + 1;
+                appData.products.push(productData);
+            }
+            if (await saveData()) { bootstrap.Modal.getInstance(document.getElementById('stockModal')).hide(); updateAllViews(); showToast('Product saved successfully!', 'success'); }
+        }
+
+        async function markOrderComplete(orderId) {
+            const order = appData.orders.find(o => o.id === orderId);
+            if (order && order.status !== 'completed') {
+                order.status = 'completed';
+                const payment = appData.payments.find(p => p.orderId === orderId);
+                if (payment) payment.status = 'completed';
+                if (await saveData()) { updateAllViews(); showToast(`Order #${orderId} marked as completed!`, 'success'); }
+            }
+        }
+        
+        async function markPaymentComplete(paymentId) {
+             const payment = appData.payments.find(p => p.id === paymentId);
+             if (payment && payment.status !== 'completed') {
+                payment.status = 'completed';
+                const order = appData.orders.find(o => o.id === payment.orderId);
+                if (order) order.status = 'completed';
+                if (await saveData()) { updateAllViews(); showToast(`Payment for Order #${payment.orderId} marked complete!`, 'success'); }
+            }
+        }
+
+        async function saveTemplate() {
+            const type = document.getElementById('templateType').value;
+            appData.templates[type] = document.getElementById('messageTemplate').value;
+            if (await saveData()) { showToast('Template saved successfully!', 'success'); }
+        }
+
+        async function deleteRetailer(id) {
+            if (confirm('Are you sure?')) {
+                appData.retailers = appData.retailers.filter(r => r.id !== id);
+                if (await saveData()) { updateAllViews(); showToast('Retailer deleted.', 'success'); }
+            }
+        }
+
+        function editRetailer(id) {
+            const retailer = appData.retailers.find(r => r.id === id);
+            if (retailer) {
+                document.getElementById('retailerId').value = retailer.id;
+                document.getElementById('shopName').value = retailer.shopName;
+                document.getElementById('ownerName').value = retailer.ownerName;
+                document.getElementById('phoneNumber').value = retailer.phoneNumber;
+                document.getElementById('whatsappNumber').value = retailer.whatsappNumber;
+                document.getElementById('address').value = retailer.address;
+                document.getElementById('creditLimit').value = retailer.creditLimit;
+                new bootstrap.Modal(document.getElementById('retailerModal')).show();
+            }
+        }
+        
+        function editProduct(id) {
+            const product = appData.products.find(p => p.id === id);
+            if (product) {
+                document.getElementById('productId').value = product.id;
+                document.getElementById('productName').value = product.name;
+                document.getElementById('productSKU').value = product.sku;
+                document.getElementById('currentStock').value = product.currentStock;
+                document.getElementById('minStock').value = product.minStock;
+                document.getElementById('unitPrice').value = product.unitPrice;
+                document.getElementById('productCategory').value = product.category;
+                new bootstrap.Modal(document.getElementById('stockModal')).show();
+            }
+        }
+
+        async function addStock(id) {
+            const product = appData.products.find(p => p.id === id);
+            const qty = parseInt(prompt(`Add stock for ${product.name}:`, "10"));
+            if (product && qty > 0) {
+                product.currentStock += qty;
+                if (await saveData()) { updateAllViews(); showToast('Stock updated.', 'success'); }
+            }
+        }
 
         // --- Notification Functions ---
         async function sendWhatsAppMessage(number, message) {
@@ -583,10 +719,37 @@
                 return false;
             }
         }
-        async function sendPaymentReminder(paymentId) { /* ... */ }
-        async function sendPaymentReminders() { /* ... */ }
-        async function sendOrderConfirmation(order) { /* ... */ }
-        async function testNotification() { /* ... */ }
+
+        async function sendPaymentReminder(paymentId) {
+            const payment = appData.payments.find(p => p.id === paymentId);
+            const retailer = appData.retailers.find(r => r.id === payment.retailerId);
+            if (payment && retailer) {
+                const message = appData.templates.payment_reminder.replace('{{retailer_name}}', retailer.ownerName).replace('{{amount}}', payment.amount.toLocaleString('en-IN')).replace('{{order_id}}', payment.orderId).replace('{{due_date}}', formatDate(payment.dueDate));
+                if (await sendWhatsAppMessage(retailer.whatsappNumber, message)) { showToast(`Reminder for ${retailer.shopName} sent to server.`, 'info'); }
+            }
+        }
+        
+        async function sendPaymentReminders() {
+            const pending = appData.payments.filter(p => p.status === 'pending' || p.status === 'overdue');
+            showToast(`Sending ${pending.length} reminders via server...`, 'info');
+            for (const payment of pending) { await sendPaymentReminder(payment.id); }
+        }
+
+        async function sendOrderConfirmation(order) {
+            const retailer = appData.retailers.find(r => r.id === order.retailerId);
+            if (retailer) {
+                 const deliveryDate = new Date(order.date);
+                 deliveryDate.setDate(deliveryDate.getDate() + 3);
+                 const message = appData.templates.order_confirmation.replace('{{retailer_name}}', retailer.ownerName).replace('{{order_id}}', order.id).replace('{{amount}}', order.totalAmount.toLocaleString('en-IN')).replace('{{delivery_date}}', formatDate(deliveryDate.toISOString().split('T')[0]));
+                await sendWhatsAppMessage(retailer.whatsappNumber, message);
+            }
+        }
+
+        async function testNotification() {
+            const message = document.getElementById('messageTemplate').value;
+            const testNumber = prompt("Enter your WhatsApp number (with country code) for server to send a test message:", "91");
+            if (testNumber) { await sendWhatsAppMessage(testNumber, message); }
+        }
         
         // --- Utility functions ---
         function showToast(message, type = 'info') {
